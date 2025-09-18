@@ -2,8 +2,6 @@
 
 #include <asm/processor.h>
 
-#define COMP_RETRIES	(10000)
-
 static int idxd_enqcmds(struct idxd_wq *wq, void __iomem *portal, const void *desc)
 {
 	unsigned int retries = wq->enqcmds_retries;
@@ -53,10 +51,7 @@ int submit(struct dma_chan *c, struct dsa_hw_desc *desc)
 
 int poll(struct dsa_completion_record *comp)
 {
-	int retry;
-
-	retry = 0;
-	while (comp->status == 0 && retry++ < COMP_RETRIES)
+	while (comp->status == 0)
 		cpu_relax();
 
 	return comp->status;
