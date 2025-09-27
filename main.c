@@ -77,7 +77,7 @@ static int test_init(int tid)
 	if (error)
 		goto failure1;
 	for (i = 0; i < NR_DESC; i++)
-		ctx->comp_dma[i] = dma_map_single(ctx->chan->device->dev, ctx->comp[i], sizeof(struct dsa_completion_record), DMA_FROM_DEVICE);
+		ctx->comp_dma[i] = dma_map_single(ctx->chan->device->dev, ctx->comp[i], sizeof(struct dsa_completion_record), DMA_BIDIRECTIONAL);
 
 	return 0;
 
@@ -158,7 +158,7 @@ static void test_exit(int tid)
 
 	// Completion
 	for (i = 0; i < NR_DESC; i++) {
-		dma_unmap_single(ctx->chan->device->dev, ctx->comp_dma[i], sizeof(struct dsa_completion_record), DMA_FROM_DEVICE);
+		dma_unmap_single(ctx->chan->device->dev, ctx->comp_dma[i], sizeof(struct dsa_completion_record), DMA_BIDIRECTIONAL);
 		kmem_cache_free(comp_cache, ctx->comp[i]);
 	}
 
