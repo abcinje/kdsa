@@ -55,7 +55,7 @@ static int test_init(int tid)
 	ctx = &ctxs[tid];
 
 	// Channel
-	ctx->chan = chan[tid / (NR_THREAD >> 3)];
+	ctx->chan = chan[tid / (NR_THREAD / NR_CHAN)];
 
 	// Buffer
 	ctx->src = kmalloc(BLK_SIZE, GFP_KERNEL);
