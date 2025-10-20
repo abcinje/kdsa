@@ -26,8 +26,6 @@ static int submit_desc(struct idxd_wq *wq, struct dsa_hw_desc *desc)
 
 	portal = idxd_wq_portal_addr(wq);
 
-	wmb();
-
 #if (WQ_DEDICATED == 1)
 	// Dedicated WQs
 	movdir64b(portal, desc);
