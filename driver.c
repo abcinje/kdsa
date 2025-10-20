@@ -2,9 +2,10 @@
 
 #include <asm/processor.h>
 
+#define WQ_DEDICATED	(1)
 #define COMP_RETRIES	(10000)
 
-static int idxd_enqcmds(struct idxd_wq *wq, void __iomem *portal, const void *desc)
+static int __maybe_unused idxd_enqcmds(struct idxd_wq *wq, void __iomem *portal, const void *desc)
 {
 	unsigned int retries = wq->enqcmds_retries;
 	int rc;
@@ -27,7 +28,16 @@ static int submit_desc(struct idxd_wq *wq, struct dsa_hw_desc *desc)
 
 	wmb();
 
+#if (WQ_DEDICATED == 1)
+	// Dedicated WQs
+	movdir64b(portal, desc);
+	return 0;
+#elif (WQ_DEDICATED == 0)
+	// Shared WQs
 	return idxd_enqcmds(wq, portal, desc);
+#else
+#error Invalid WQ mode
+#endif
 }
 
 void prep(struct dsa_hw_desc *desc, char opcode, u64 addr_f1, u64 addr_f2, u64 len, u64 compl, u32 flags)
