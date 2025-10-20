@@ -12,6 +12,8 @@
 #define NR_SUBMIT   (262144)
 #define NR_DESC     (512)
 
+#define A100_BAR1   (0x203000000000)
+
 #if (NR_THREAD != 8) && (NR_THREAD != 16) && (NR_THREAD != 32)
 #error Invalid number of threads
 #endif
@@ -26,10 +28,10 @@ struct test_ctx {
 	dma_addr_t comp_dma[NR_DESC];
 
 	void *src, *dst;
-	dma_addr_t src_dma, dst_dma;
+	dma_addr_t src_dma, dst_dma, gpu_dma;
 	struct dma_chan *chan;
 
-	uint8_t padding[24];
+	uint8_t padding[16];
 } __attribute__((aligned(64)));
 static_assert(sizeof(struct test_ctx) % 64 == 0);
 
@@ -66,6 +68,7 @@ static int test_init(int tid)
 	// IOVA
 	ctx->src_dma = dma_map_single(ctx->chan->device->dev, ctx->src, BLK_SIZE, DMA_TO_DEVICE);
 	ctx->dst_dma = dma_map_single(ctx->chan->device->dev, ctx->dst, BLK_SIZE, DMA_FROM_DEVICE);
+	ctx->gpu_dma = A100_BAR1 + tid * BLK_SIZE;
 
 	// Completion
 	error = 0;
@@ -121,7 +124,14 @@ static void test_run(int tid)
 
 		for (i = 0; i < targetted; i++) {
 			memset(ctx->comp[i], 0, sizeof(struct dsa_completion_record));
+
+#if 1
+			// CPU -> CPU
 			prep(&ctx->desc[i], DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->dst_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
+#else
+			// CPU -> GPU
+			prep(&ctx->desc[i], DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->gpu_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
+#endif
 
 			rc = submit(ctx->chan, &ctx->desc[i]);
 			if (rc) {
