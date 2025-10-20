@@ -61,3 +61,8 @@ int poll(struct dsa_completion_record *comp)
 
 	return comp->status;
 }
+
+void print_comp(const struct dsa_completion_record *comp)
+{
+	printk("kdsa: comp (status %u, fault_addr %#llx)\n", comp->status, comp->fault_addr);
+}
