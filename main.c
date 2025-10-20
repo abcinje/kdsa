@@ -12,7 +12,7 @@
 #define NR_SUBMIT   (262144)
 #define NR_DESC     (512)
 
-#if (NR_THREAD != 16) && (NR_THREAD != 32)
+#if (NR_THREAD != 8) && (NR_THREAD != 16) && (NR_THREAD != 32)
 #error Invalid number of threads
 #endif
 
