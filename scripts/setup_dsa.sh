@@ -48,7 +48,9 @@ function reset_dsa {
 
 num_dsa=`ls /sys/bus/dsa/devices/ | grep dsa | wc -l`
 
-if [ "$1" = "init" ]; then
+if [ "$#" -ne 1 ]; then
+	echo "Usage: $0 [init|reset]"
+elif [ "$1" = "init" ]; then
 	for ((did = 0; did < $num_dsa; did++)); do
 		init_dsa $did
 	done
