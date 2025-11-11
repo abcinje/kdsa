@@ -6,6 +6,7 @@
 
 #include "driver.h"
 
+#define NR_NUMA     (2)
 #define NR_CHAN     (8)
 #define NR_THREAD   (32)
 #define BLK_SIZE    (512)
@@ -44,7 +45,7 @@ static ktime_t end_ktime[NR_THREAD];
 static wait_queue_head_t barrier_waitqueue;
 static atomic_t barrier_cnt = ATOMIC_INIT(0);
 
-static struct dma_chan *dma_chan[NR_CHAN];
+static struct dma_chan *dma_chan[NR_NUMA][NR_CHAN];
 
 static struct kmem_cache *comp_cache;
 
@@ -57,7 +58,7 @@ static int test_init(int tid)
 	ctx = &ctxs[tid];
 
 	// Channel
-	ctx->chan = dma_chan[tid / (NR_THREAD / NR_CHAN)];
+	ctx->chan = dma_chan[0][tid / (NR_THREAD / NR_CHAN)];
 
 	// Buffer
 	ctx->src = kmalloc(BLK_SIZE, GFP_KERNEL);
@@ -252,7 +253,7 @@ static long long int find_min_max(long long int *arr, int len, int is_max)
 static int __init kdsa_init(void)
 {
 	char chan_name[16];
-	int cid;
+	int nid, cid;
 	int tid;
 	int rc;
 	long long int begin[NR_THREAD];
@@ -260,10 +261,11 @@ static int __init kdsa_init(void)
 	long long int b, e;
 
 	// Channel
-	for (cid = 0; cid < NR_CHAN; cid++) {
-		snprintf(chan_name, 16, "dma0chan%d", cid);
-		dma_chan[cid] = request_channel(chan_name);
-	}
+	for (nid = 0; nid < NR_NUMA; nid++)
+		for (cid = 0; cid < NR_CHAN; cid++) {
+			snprintf(chan_name, 16, "dma%dchan%d", nid, cid);
+			dma_chan[nid][cid] = request_channel(chan_name);
+		}
 
 	// Barrier
 	init_waitqueue_head(&barrier_waitqueue);
@@ -313,9 +315,10 @@ static int __init kdsa_init(void)
 	kmem_cache_destroy(comp_cache);
 
 	// Channel
-	for (cid = 0; cid < NR_CHAN; cid++)
-		if (dma_chan[cid])
-			dma_release_channel(dma_chan[cid]);
+	for (nid = 0; nid < NR_NUMA; nid++)
+		for (cid = 0; cid < NR_CHAN; cid++)
+			if (dma_chan[nid][cid])
+				dma_release_channel(dma_chan[nid][cid]);
 
 	// rc == 0 means success; the return code is intentional to avoid rmmod
 	return rc ? rc : -EPERM;
