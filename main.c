@@ -44,7 +44,7 @@ static ktime_t end_ktime[NR_THREAD];
 static wait_queue_head_t barrier_waitqueue;
 static atomic_t barrier_cnt = ATOMIC_INIT(0);
 
-static struct dma_chan *chan[NR_CHAN];
+static struct dma_chan *dma_chan[NR_CHAN];
 
 static struct kmem_cache *comp_cache;
 
@@ -57,7 +57,7 @@ static int test_init(int tid)
 	ctx = &ctxs[tid];
 
 	// Channel
-	ctx->chan = chan[tid / (NR_THREAD / NR_CHAN)];
+	ctx->chan = dma_chan[tid / (NR_THREAD / NR_CHAN)];
 
 	// Buffer
 	ctx->src = kmalloc(BLK_SIZE, GFP_KERNEL);
@@ -262,7 +262,7 @@ static int __init kdsa_init(void)
 	// Channel
 	for (cid = 0; cid < NR_CHAN; cid++) {
 		snprintf(chan_name, 16, "dma0chan%d", cid);
-		chan[cid] = request_channel(chan_name);
+		dma_chan[cid] = request_channel(chan_name);
 	}
 
 	// Barrier
@@ -314,8 +314,8 @@ static int __init kdsa_init(void)
 
 	// Channel
 	for (cid = 0; cid < NR_CHAN; cid++)
-		if (chan[cid])
-			dma_release_channel(chan[cid]);
+		if (dma_chan[cid])
+			dma_release_channel(dma_chan[cid]);
 
 	// rc == 0 means success; the return code is intentional to avoid rmmod
 	return rc ? rc : -EPERM;
