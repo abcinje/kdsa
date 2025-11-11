@@ -38,11 +38,11 @@ static int submit_desc(struct idxd_wq *wq, struct dsa_hw_desc *desc)
 #endif
 }
 
-void prep(struct dsa_hw_desc *desc, char opcode, u64 addr_f1, u64 addr_f2, u64 len, u64 compl, u32 flags)
+void prep(struct dsa_hw_desc *desc, u32 pasid, u8 opcode, u64 addr_f1, u64 addr_f2, u64 len, u64 compl, u32 flags)
 {
 	memset(desc, 0, sizeof(struct dsa_hw_desc));
 
-	desc->pasid = 1;
+	desc->pasid = pasid;
 	desc->flags = flags;
 	desc->opcode = opcode;
 	desc->src_addr = addr_f1;

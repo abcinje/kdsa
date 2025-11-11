@@ -130,7 +130,7 @@ static void test_run(int tid)
 			prep(&ctx->desc[i], DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->dst_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
 #else
 			// CPU -> GPU
-			prep(&ctx->desc[i], DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->gpu_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
+			prep(&ctx->desc[i], 1, DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->gpu_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
 #endif
 
 			rc = submit(ctx->chan, &ctx->desc[i]);
