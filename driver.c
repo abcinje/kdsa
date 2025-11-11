@@ -2,8 +2,8 @@
 
 #include <asm/processor.h>
 
-#define WQ_DEDICATED	(1)
-#define COMP_RETRIES	(10000)
+#define WQ_DEDICATED	(0)
+#define COMP_RETRIES	(200000)
 
 static int __maybe_unused idxd_enqcmds(struct idxd_wq *wq, void __iomem *portal, const void *desc)
 {

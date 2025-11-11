@@ -68,7 +68,7 @@ static int test_init(int tid)
 	// IOVA
 	ctx->src_dma = dma_map_single(ctx->chan->device->dev, ctx->src, BLK_SIZE, DMA_TO_DEVICE);
 	ctx->dst_dma = dma_map_single(ctx->chan->device->dev, ctx->dst, BLK_SIZE, DMA_FROM_DEVICE);
-	ctx->gpu_dma = A100_BAR1 + tid * BLK_SIZE;
+	ctx->gpu_dma = dma_map_resource(ctx->chan->device->dev, A100_BAR1 + tid * BLK_SIZE, BLK_SIZE, DMA_BIDIRECTIONAL, 0);
 
 	// Completion
 	error = 0;
@@ -125,7 +125,7 @@ static void test_run(int tid)
 		for (i = 0; i < targetted; i++) {
 			memset(ctx->comp[i], 0, sizeof(struct dsa_completion_record));
 
-#if 1
+#if 0
 			// CPU -> CPU
 			prep(&ctx->desc[i], DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->dst_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
 #else
@@ -175,6 +175,7 @@ static void test_exit(int tid)
 	// IOVA
 	dma_unmap_single(ctx->chan->device->dev, ctx->src_dma, BLK_SIZE, DMA_TO_DEVICE);
 	dma_unmap_single(ctx->chan->device->dev, ctx->dst_dma, BLK_SIZE, DMA_FROM_DEVICE);
+	dma_unmap_resource(ctx->chan->device->dev, ctx->gpu_dma, BLK_SIZE, DMA_BIDIRECTIONAL, 0);
 
 	// Buffer
 	kfree(ctx->src);

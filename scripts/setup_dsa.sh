@@ -2,7 +2,7 @@
 
 set -u
 
-wq_mode=dedicated
+wq_mode=shared
 
 function init_dsa {
 	local did=$1
