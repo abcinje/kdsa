@@ -31,8 +31,9 @@ struct test_ctx {
 	void *src, *dst;
 	dma_addr_t src_dma, dst_dma, gpu_dma;
 	struct dma_chan *chan;
+	uint32_t pasid;
 
-	uint8_t padding[16];
+	uint8_t padding[12];
 } __attribute__((aligned(64)));
 static_assert(sizeof(struct test_ctx) % 64 == 0);
 
@@ -59,6 +60,7 @@ static int test_init(int tid)
 
 	// Channel
 	ctx->chan = dma_chan[0][tid / (NR_THREAD / NR_CHAN)];
+	ctx->pasid = 1;
 
 	// Buffer
 	ctx->src = kmalloc(BLK_SIZE, GFP_KERNEL);
@@ -131,7 +133,7 @@ static void test_run(int tid)
 			prep(&ctx->desc[i], DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->dst_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
 #else
 			// CPU -> GPU
-			prep(&ctx->desc[i], 1, DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->gpu_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
+			prep(&ctx->desc[i], ctx->pasid, DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->gpu_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
 #endif
 
 			rc = submit(ctx->chan, &ctx->desc[i]);
