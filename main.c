@@ -299,10 +299,10 @@ static int __init kdsa_init(void)
 
 	// Result
 	if (!rc) {
-		for (tid = 0; tid < NR_THREAD; tid++)
+		for (tid = 0; tid < NR_THREAD; tid++) {
 			begin[tid] = ktime_to_ns(begin_ktime[tid]);
-		for (tid = 0; tid < NR_THREAD; tid++)
 			end[tid] = ktime_to_ns(end_ktime[tid]);
+		}
 
 		b = find_min_max(begin, NR_THREAD, 0);
 		e = find_min_max(end, NR_THREAD, 1);
