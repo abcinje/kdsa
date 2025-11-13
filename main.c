@@ -15,7 +15,7 @@
 
 #define A100_BAR1   (0x203000000000)
 
-#if (NR_THREAD != 8) && (NR_THREAD != 16) && (NR_THREAD != 32)
+#if (NR_THREAD != 32)
 #error Invalid number of threads
 #endif
 
@@ -63,8 +63,8 @@ static int test_init(int tid)
 	ctx->io_cnt = 0;
 
 	// Channel
-	ctx->chan = dma_chan[0][tid / (NR_THREAD / NR_CHAN)];
-	ctx->pasid = 1;
+	ctx->chan = dma_chan[tid / 16][(tid % 16) / 2];
+	ctx->pasid = tid < 16 ? 1 : 2;
 
 	// Buffer
 	ctx->src = kmalloc(BLK_SIZE, GFP_KERNEL);
