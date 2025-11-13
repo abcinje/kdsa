@@ -1,4 +1,5 @@
 #include <linux/atomic.h>
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/kthread.h>
@@ -10,7 +11,6 @@
 #define NR_CHAN     (8)
 #define NR_THREAD   (32)
 #define BLK_SIZE    (512)
-#define NR_SUBMIT   (262144)
 #define NR_DESC     (512)
 
 #define A100_BAR1   (0x203000000000)
@@ -33,7 +33,9 @@ struct test_ctx {
 	struct dma_chan *chan;
 	uint32_t pasid;
 
-	uint8_t padding[12];
+	uint64_t io_cnt;
+
+	uint8_t padding[4];
 } __attribute__((aligned(64)));
 static_assert(sizeof(struct test_ctx) % 64 == 0);
 
@@ -57,6 +59,8 @@ static int test_init(int tid)
 	int error;
 
 	ctx = &ctxs[tid];
+
+	ctx->io_cnt = 0;
 
 	// Channel
 	ctx->chan = dma_chan[0][tid / (NR_THREAD / NR_CHAN)];
@@ -113,17 +117,15 @@ static void test_run(int tid)
 {
 	struct test_ctx *ctx;
 	int i;
-	int remained, targetted, submitted, failed;
+	int targetted, submitted;
 	int rc;
 
 	ctx = &ctxs[tid];
 
-	remained = NR_SUBMIT;
-	while (remained) {
-		targetted = min(remained, NR_DESC);
+	while (!kthread_should_stop()) {
+		targetted = NR_DESC;
 
 		submitted = 0;
-		failed = 0;
 
 		for (i = 0; i < targetted; i++) {
 			memset(ctx->comp[i], 0, sizeof(struct dsa_completion_record));
@@ -152,13 +154,11 @@ static void test_run(int tid)
 
 		for (i = 0; i < submitted; i++) {
 			rc = poll(ctx->comp[i]);
-			if (rc != DSA_COMP_SUCCESS) {
+			if (unlikely(rc != DSA_COMP_SUCCESS))
 				printk("kdsa: fatal: failed to poll (rc %d)\n", rc);
-				failed++;
-			}
+			else
+				ctx->io_cnt++;
 		}
-
-		remained -= (submitted - failed);
 	}
 }
 
@@ -290,6 +290,8 @@ static int __init kdsa_init(void)
 		wake_up_process(threads[tid]);
 	}
 
+	msleep(5000);
+
 	// Stop threads
 	rc = 0;
 	for (tid = 0; tid < NR_THREAD; tid++) {
@@ -309,7 +311,9 @@ static int __init kdsa_init(void)
 		b = find_min_max(begin, NR_THREAD, 0);
 		e = find_min_max(end, NR_THREAD, 1);
 
-		total_io_cnt = NR_THREAD * NR_SUBMIT;
+		total_io_cnt = 0;
+		for (tid = 0; tid < NR_THREAD; tid++)
+			total_io_cnt += ctxs[tid].io_cnt;
 		elapsed_ns = e - b;
 
 		printk("kdsa: ======== Result ========\n");
