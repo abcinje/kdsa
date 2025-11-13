@@ -80,7 +80,7 @@ static int test_init(int tid)
 	// Completion
 	error = 0;
 	for (i = 0; i < NR_DESC; i++) {
-		ctx->comp[i] = kmem_cache_alloc(comp_cache, GFP_KERNEL);
+		ctx->comp[i] = kmem_cache_zalloc(comp_cache, GFP_KERNEL);
 		if (!ctx->comp[i])
 			error = 1;
 	}
@@ -128,8 +128,6 @@ static void test_run(int tid)
 		submitted = 0;
 
 		for (i = 0; i < targetted; i++) {
-			memset(ctx->comp[i], 0, sizeof(struct dsa_completion_record));
-
 #if 0
 			// CPU -> CPU
 			prep(&ctx->desc[i], DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->dst_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
@@ -158,6 +156,7 @@ static void test_run(int tid)
 				printk("kdsa: fatal: failed to poll (rc %d)\n", rc);
 			else
 				ctx->io_cnt++;
+			ctx->comp[i]->status = 0;
 		}
 	}
 }
