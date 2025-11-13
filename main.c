@@ -261,6 +261,8 @@ static int __init kdsa_init(void)
 	long long int begin[NR_THREAD];
 	long long int end[NR_THREAD];
 	long long int b, e;
+	long long int total_io_cnt;
+	long long int elapsed_ns;
 
 	// Channel
 	for (nid = 0; nid < NR_NUMA; nid++)
@@ -306,9 +308,16 @@ static int __init kdsa_init(void)
 
 		b = find_min_max(begin, NR_THREAD, 0);
 		e = find_min_max(end, NR_THREAD, 1);
-		printk("kdsa: elapsed_ns: %lld\n", e - b);
 
-		printk("kdsa: io: %ld\n", (long)NR_THREAD * NR_SUBMIT);
+		total_io_cnt = NR_THREAD * NR_SUBMIT;
+		elapsed_ns = e - b;
+
+		printk("kdsa: ======== Result ========\n");
+		printk("kdsa: io:         %lld\n", total_io_cnt);
+		printk("kdsa: elapsed:    %lld ms\n", elapsed_ns / 1000000);
+		printk("kdsa: bandwidth:  %lld.%03lld MIOPS\n",
+				(total_io_cnt * 1000) / elapsed_ns,
+				((total_io_cnt * 1000000) / elapsed_ns) % 1000);
 	} else {
 		printk("kdsa: failed to test\n");
 	}
