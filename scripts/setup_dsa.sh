@@ -26,7 +26,7 @@ function init_dsa {
 		fi
 		sudo accel-config config-wq dsa$did/wq$did.$i \
 		--group-id=$did --type=kernel --driver-name=dmaengine \
-		$mode_flag --wq-size=16 --priority=10 --name=dma$did$i
+		$mode_flag --wq-size=16 --max-batch-size=1024 --priority=10 --name=dma$did$i
 	done
 	
 	sudo accel-config enable-device dsa$did

@@ -23,10 +23,16 @@
 #error Invalid number of descriptors
 #endif
 
+#define BATCH
+
 struct test_ctx {
 	struct dsa_hw_desc desc[NR_DESC];
 	struct dsa_completion_record *comp[NR_DESC];
 	dma_addr_t comp_dma[NR_DESC];
+
+	struct dsa_hw_desc batch_desc;
+	struct dsa_completion_record *batch_comp;
+	dma_addr_t desc_list_dma, batch_comp_dma;
 
 	void *src, *dst;
 	dma_addr_t src_dma, dst_dma, gpu_dma;
@@ -34,8 +40,6 @@ struct test_ctx {
 	uint32_t pasid;
 
 	uint64_t io_cnt;
-
-	uint8_t padding[4];
 } __attribute__((aligned(64)));
 static_assert(sizeof(struct test_ctx) % 64 == 0);
 
@@ -73,9 +77,12 @@ static int test_init(int tid)
 		goto failure0;
 
 	// IOVA
-	ctx->src_dma = dma_map_single(ctx->chan->device->dev, ctx->src, BLK_SIZE, DMA_TO_DEVICE);
-	ctx->dst_dma = dma_map_single(ctx->chan->device->dev, ctx->dst, BLK_SIZE, DMA_FROM_DEVICE);
+	ctx->src_dma = dma_map_single(ctx->chan->device->dev, ctx->src, BLK_SIZE, DMA_BIDIRECTIONAL);
+	ctx->dst_dma = dma_map_single(ctx->chan->device->dev, ctx->dst, BLK_SIZE, DMA_BIDIRECTIONAL);
 	ctx->gpu_dma = dma_map_resource(ctx->chan->device->dev, A100_BAR1 + tid * BLK_SIZE, BLK_SIZE, DMA_BIDIRECTIONAL, 0);
+
+	// IOVA for Batch
+	ctx->desc_list_dma = dma_map_single(ctx->chan->device->dev, ctx->desc, NR_DESC * sizeof(struct dsa_hw_desc), DMA_BIDIRECTIONAL);
 
 	// Completion
 	error = 0;
@@ -84,10 +91,15 @@ static int test_init(int tid)
 		if (!ctx->comp[i])
 			error = 1;
 	}
+	ctx->batch_comp = kmem_cache_zalloc(comp_cache, GFP_KERNEL);
+	if (!ctx->batch_comp)
+		error = 1;
 	if (error)
 		goto failure1;
+
 	for (i = 0; i < NR_DESC; i++)
 		ctx->comp_dma[i] = dma_map_single(ctx->chan->device->dev, ctx->comp[i], sizeof(struct dsa_completion_record), DMA_BIDIRECTIONAL);
+	ctx->batch_comp_dma = dma_map_single(ctx->chan->device->dev, ctx->batch_comp, sizeof(struct dsa_completion_record), DMA_BIDIRECTIONAL);
 
 	return 0;
 
@@ -123,6 +135,7 @@ static void test_run(int tid)
 	ctx = &ctxs[tid];
 
 	while (!kthread_should_stop()) {
+#ifndef BATCH
 		targetted = NR_DESC;
 
 		submitted = 0;
@@ -158,6 +171,29 @@ static void test_run(int tid)
 				ctx->io_cnt++;
 			ctx->comp[i]->status = 0;
 		}
+#else
+		for (i = 0; i < NR_DESC; i++)
+			prep(&ctx->desc[i], ctx->pasid, DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->gpu_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
+		prep(&ctx->batch_desc, ctx->pasid, DSA_OPCODE_BATCH, ctx->desc_list_dma, 0, NR_DESC, ctx->batch_comp_dma, IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
+
+		rc = submit(ctx->chan, &ctx->batch_desc);
+		if (rc) {
+			if (unlikely(rc != -11))
+				printk("kdsa: fatal: failed to submit desc (rc %d)\n", rc);
+		} else {
+			rc = poll(ctx->batch_comp);
+			if (unlikely(rc != DSA_COMP_SUCCESS))
+				printk("kdsa: fatal: failed to poll (rc %d)\n", rc);
+			else
+				ctx->io_cnt += NR_DESC;
+
+			for (i = 0; i < NR_DESC; i++)
+				ctx->comp[i]->status = 0;
+			ctx->batch_comp->status = 0;
+		}
+
+		return;
+#endif
 	}
 }
 
@@ -173,10 +209,15 @@ static void test_exit(int tid)
 		dma_unmap_single(ctx->chan->device->dev, ctx->comp_dma[i], sizeof(struct dsa_completion_record), DMA_BIDIRECTIONAL);
 		kmem_cache_free(comp_cache, ctx->comp[i]);
 	}
+	dma_unmap_single(ctx->chan->device->dev, ctx->batch_comp_dma, sizeof(struct dsa_completion_record), DMA_BIDIRECTIONAL);
+	kmem_cache_free(comp_cache, ctx->batch_comp);
+
+	// IOVA for Batch
+	dma_unmap_single(ctx->chan->device->dev, ctx->desc_list_dma, NR_DESC * sizeof(struct dsa_hw_desc), DMA_BIDIRECTIONAL);
 
 	// IOVA
-	dma_unmap_single(ctx->chan->device->dev, ctx->src_dma, BLK_SIZE, DMA_TO_DEVICE);
-	dma_unmap_single(ctx->chan->device->dev, ctx->dst_dma, BLK_SIZE, DMA_FROM_DEVICE);
+	dma_unmap_single(ctx->chan->device->dev, ctx->src_dma, BLK_SIZE, DMA_BIDIRECTIONAL);
+	dma_unmap_single(ctx->chan->device->dev, ctx->dst_dma, BLK_SIZE, DMA_BIDIRECTIONAL);
 	dma_unmap_resource(ctx->chan->device->dev, ctx->gpu_dma, BLK_SIZE, DMA_BIDIRECTIONAL, 0);
 
 	// Buffer
@@ -289,7 +330,7 @@ static int __init kdsa_init(void)
 		wake_up_process(threads[tid]);
 	}
 
-	msleep(5000);
+	msleep(10000);
 
 	// Stop threads
 	rc = 0;
