@@ -317,7 +317,7 @@ static int __init kdsa_init(void)
 
 		printk("kdsa: ======== Result ========\n");
 		printk("kdsa: io:         %lld\n", total_io_cnt);
-		printk("kdsa: elapsed:    %lld ms\n", elapsed_ns / 1000000);
+		printk("kdsa: elapsed:    %lld μs\n", elapsed_ns / 1000);
 		printk("kdsa: bandwidth:  %lld.%03lld MIOPS\n",
 				(total_io_cnt * 1000) / elapsed_ns,
 				((total_io_cnt * 1000000) / elapsed_ns) % 1000);
