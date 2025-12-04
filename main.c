@@ -191,8 +191,6 @@ static void test_run(int tid)
 				ctx->comp[i]->status = 0;
 			ctx->batch_comp->status = 0;
 		}
-
-		return;
 #endif
 	}
 }
