@@ -151,7 +151,7 @@ static void test_run(int tid)
 
 			rc = submit(ctx->chan, &ctx->desc[i]);
 			if (rc) {
-				if (unlikely(rc != -11))
+				if (unlikely(rc != -EAGAIN))
 					printk("kdsa: fatal: failed to submit desc (rc %d)\n", rc);
 				break;
 			}
