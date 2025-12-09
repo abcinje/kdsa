@@ -61,13 +61,13 @@ int submit(struct dma_chan *c, struct dsa_hw_desc *desc)
 
 int poll(struct dsa_completion_record *comp)
 {
-	int retry;
+	int retry = 0;
+	volatile uint8_t *status = &comp->status;
 
-	retry = 0;
-	while (comp->status == 0 && retry++ < COMP_RETRIES)
+	while (DSA_COMP_STATUS(*status) == 0 && retry++ < COMP_RETRIES)
 		cpu_relax();
 
-	return comp->status;
+	return DSA_COMP_STATUS(*status);
 }
 
 void print_comp(const struct dsa_completion_record *comp)
