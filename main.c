@@ -31,7 +31,6 @@ struct test_ctx {
 	void *src, *dst;
 	dma_addr_t src_dma, dst_dma, gpu_dma;
 	struct dma_chan *chan;
-	uint32_t pasid;
 
 	uint64_t io_cnt;
 
@@ -64,7 +63,6 @@ static int test_init(int tid)
 
 	// Channel
 	ctx->chan = dma_chan[tid / 16][(tid % 16) / 2];
-	ctx->pasid = tid < 16 ? 1 : 2;
 
 	// Buffer
 	ctx->src = kmalloc(BLK_SIZE, GFP_KERNEL);
@@ -133,7 +131,7 @@ static void test_run(int tid)
 			prep(&ctx->desc[i], DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->dst_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
 #else
 			// CPU -> GPU
-			prep(&ctx->desc[i], ctx->pasid, DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->gpu_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
+			prep(&ctx->desc[i], DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->gpu_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
 #endif
 
 			rc = submit(ctx->chan, &ctx->desc[i]);
