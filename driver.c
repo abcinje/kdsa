@@ -5,7 +5,7 @@
 #define WQ_DEDICATED	(0)
 #define COMP_RETRIES	(200000)
 
-static int __maybe_unused idxd_enqcmds(struct idxd_wq *wq, void __iomem *portal, const void *desc)
+int idxd_enqcmds(struct idxd_wq *wq, void __iomem *portal, const void *desc)
 {
 	unsigned int retries = wq->enqcmds_retries;
 	int rc;
@@ -38,11 +38,10 @@ static int submit_desc(struct idxd_wq *wq, struct dsa_hw_desc *desc)
 #endif
 }
 
-void prep(struct dsa_hw_desc *desc, u32 pasid, u8 opcode, u64 addr_f1, u64 addr_f2, u64 len, u64 compl, u32 flags)
+void prep(struct dsa_hw_desc *desc, u8 opcode, u64 addr_f1, u64 addr_f2, u64 len, u64 compl, u32 flags)
 {
 	memset(desc, 0, sizeof(struct dsa_hw_desc));
 
-	desc->pasid = pasid;
 	desc->flags = flags;
 	desc->opcode = opcode;
 	desc->src_addr = addr_f1;
@@ -55,6 +54,10 @@ void prep(struct dsa_hw_desc *desc, u32 pasid, u8 opcode, u64 addr_f1, u64 addr_
 int submit(struct dma_chan *c, struct dsa_hw_desc *desc)
 {
 	struct idxd_wq *wq = to_idxd_wq(c);
+	struct idxd_device *idxd = wq->idxd;
+
+	if (device_pasid_enabled(idxd))
+		desc->pasid = idxd->pasid;
 
 	return submit_desc(wq, desc);
 }

@@ -37,7 +37,6 @@ struct test_ctx {
 	void *src, *dst;
 	dma_addr_t src_dma, dst_dma, gpu_dma;
 	struct dma_chan *chan;
-	uint32_t pasid;
 
 	uint64_t io_cnt;
 } __attribute__((aligned(64)));
@@ -68,7 +67,6 @@ static int test_init(int tid)
 
 	// Channel
 	ctx->chan = dma_chan[0][tid / (NR_THREAD / NR_CHAN)];
-	ctx->pasid = 1;
 
 	// Buffer
 	ctx->src = kmalloc(BLK_SIZE, GFP_KERNEL);
@@ -146,7 +144,7 @@ static void test_run(int tid)
 			prep(&ctx->desc[i], DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->dst_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
 #else
 			// CPU -> GPU
-			prep(&ctx->desc[i], ctx->pasid, DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->gpu_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
+			prep(&ctx->desc[i], DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->gpu_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
 #endif
 
 			rc = submit(ctx->chan, &ctx->desc[i]);
@@ -173,8 +171,8 @@ static void test_run(int tid)
 		}
 #else
 		for (i = 0; i < NR_DESC; i++)
-			prep(&ctx->desc[i], ctx->pasid, DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->gpu_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
-		prep(&ctx->batch_desc, ctx->pasid, DSA_OPCODE_BATCH, ctx->desc_list_dma, 0, NR_DESC, ctx->batch_comp_dma, IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
+			prep(&ctx->desc[i], DSA_OPCODE_MEMMOVE, ctx->src_dma, ctx->gpu_dma, BLK_SIZE, ctx->comp_dma[i], IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
+		prep(&ctx->batch_desc, DSA_OPCODE_BATCH, ctx->desc_list_dma, 0, NR_DESC, ctx->batch_comp_dma, IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CRAV);
 
 		rc = submit(ctx->chan, &ctx->batch_desc);
 		if (rc) {
